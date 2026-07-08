@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plastic Detector | Waste to Wealth</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>♻️ Plastic Sorter</h1>
+        <p class="subtitle">Upload a photo of your plastic waste to find out its type and if it's recyclable.</p>
+        
+        <form id="uploadForm">
+            <div class="upload-area">
+                <label for="imageInput" class="glass-file-btn">
+                    <span>📁 Choose File</span>
+                </label>
+                <input type="file" id="imageInput" name="file" accept="image/*" required>
+                <div id="fileNameDisplay" class="file-name-text">No image selected</div>
+            </div>
+            <button type="submit" id="submitBtn" class="glass-btn primary-btn">Analyze Plastic</button>
+        </form>
+
+        <div id="loading" class="hidden">Analyzing image... Please wait.</div>
+
+        <div id="result" class="hidden">
+            <h2 id="result-title"></h2>
+            <div class="result-row">
+                <p><strong>Type:</strong> <span id="plastic-type"></span></p>
+                <p><strong>Recyclable:</strong> <span id="recyclable-status"></span></p>
+            </div>
+            <p id="details" class="details-box"></p>
+        </div>
+
+        <footer class="credits-footer">
+            <p><strong>Built by:</strong> Harinandan S (AIDS B)</p>
+            <p class="college-name">S.A. Engineering College (Autonomous)</p>
+            <p class="address">Poonamallee - Avadi Road, Veeraraghavapuram, Thiruverkadu, Chennai - 600077, Tamil Nadu, India.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Update file name text when user picks a file
+        document.getElementById('imageInput').addEventListener('change', function() {
+            const display = document.getElementById('fileNameDisplay');
+            if (this.files && this.files[0]) {
+                display.innerText = "Selected: " + this.files[0].name;
+                display.style.color = "#ffffff";
+            } else {
+                display.innerText = "No image selected";
+                display.style.color = "rgba(255, 255, 255, 0.6)";
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('imageInput');
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const resultDiv = document.getElementById('result');
+            
+            if (!fileInput.files[0]) return;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            // Update UI for loading state
+            submitBtn.disabled = true;
+            loading.classList.remove('hidden');
+            resultDiv.classList.add('hidden');
+
+            try {
+                // Send image to Flask backend
+                const response = await fetch('/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                // Handle the JSON response
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else if (!data.detected) {
+                    document.getElementById('result-title').innerText = "❌ Plastic Not Detected";
+                    document.getElementById('plastic-type').innerText = "N/A";
+                    document.getElementById('recyclable-status').innerText = "N/A";
+                    document.getElementById('details').innerText = "We couldn't identify any plastic in this image. Please ensure the item is clearly visible and try again.";
+                    resultDiv.classList.remove('hidden');
+                } else {
+                    document.getElementById('result-title').innerText = "✅ Plastic Detected!";
+                    document.getElementById('plastic-type').innerText = data.plastic_type;
+                    
+                    const recStatus = document.getElementById('recyclable-status');
+                    recStatus.innerText = data.recyclable ? "Yes ✅" : "No 🚫";
+                    recStatus.className = data.recyclable ? "status-yes" : "status-no";
+                    
+                    document.getElementById('details').innerText = data.details;
+                    resultDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                alert("Something went wrong communicating with the server!");
+                console.error(err);
+            } finally {
+                // Reset UI
+                submitBtn.disabled = false;
+                loading.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
