@@ -1,20 +1,15 @@
-import os
 import json
 from flask import Flask, render_template, request, jsonify
 from google import genai
 from google.genai import types
-from dotenv import load_dotenv
-
-# Load .env file
-load_dotenv()
 
 app = Flask(__name__)
 
-# Get API Key
-API_KEY = os.getenv("GEMINI_API_KEY")
+# Paste your Google Cloud Console generated API key here (Starts with AIza)
+API_KEY = "AQ.Ab8RN6KyQ-OTCw7MAv0J80EnBlvjraSHMJins8KuPUoiyE7R8A"
 
 if not API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in .env file")
+    raise ValueError("API_KEY variable is empty. Please provide a valid key.")
 
 # Initialize Gemini Client
 client = genai.Client(api_key=API_KEY)
@@ -64,7 +59,6 @@ def analyze_plastic(image_bytes, mime_type):
 
     except Exception as e:
         print("ERROR:", str(e))
-
         return {
             "detected": False,
             "error": str(e)
@@ -78,18 +72,13 @@ def index():
 
 @app.route("/detect", methods=["POST"])
 def detect():
-
     if "file" not in request.files:
-        return jsonify({
-            "error": "No file uploaded"
-        }), 400
+        return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files["file"]
 
     if file.filename == "":
-        return jsonify({
-            "error": "No file selected"
-        }), 400
+        return jsonify({"error": "No file selected"}), 400
 
     image_bytes = file.read()
     mime_type = file.content_type
