@@ -1,20 +1,21 @@
 import json
+import os
+
+# 1. Clear any conflicting global GCP auth variables if they exist
+os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
+os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
+
+# 2. Force your Gemini API Key
+os.environ["GEMINI_API_KEY"] = "AQ.Ab8RN6JOD5M2gypDQxLHd1UaHBB1FHxdsLD5ojo3QgRpvgsv0Q"
+
 from flask import Flask, render_template, request, jsonify
 from google import genai
 from google.genai import types
 
 app = Flask(__name__)
 
-# Paste your Google Cloud Console generated API key here (Starts with AIza)
-API_KEY = "AQ.Ab8RN6LecrbdzfTJoNeIEU4PEvnbcQDrM2MpqP4gY3DsCVzfIw"
-
-if not API_KEY:
-    raise ValueError("API_KEY variable is empty. Please provide a valid key.")
-
-# Initialize Gemini Client
-client = genai.Client(api_key=API_KEY)
-
-
+# 3. Explicitly pass the key directly to guarantee it binds properly
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 def analyze_plastic(image_bytes, mime_type):
     try:
         image_part = types.Part.from_bytes(
@@ -22,22 +23,33 @@ def analyze_plastic(image_bytes, mime_type):
             mime_type=mime_type
         )
 
+        # FIXED PROMPT: Explicitly categorizes plastic types and treats JSON values as dynamic placeholders
         prompt = """
-        You are an expert in waste management and plastic recycling.
+        You are an expert computer vision model specializing in waste management and plastic recycling.
 
-        Analyze the uploaded image and identify the plastic type.
+        Analyze the uploaded image carefully. Identify if there is a plastic item, determine its specific plastic type/resin identification code, and assess its general recyclability.
 
-        Return ONLY valid JSON in this format:
+        Look for characteristics matching these categories:
+        1. PET (Polyethylene Terephthalate) - Water/soda bottles, transparent jars.
+        2. HDPE (High-Density Polyethylene) - Milk jugs, shampoo bottles, detergent containers.
+        3. PVC (Polyvinyl Chloride) - Pipes, credit cards, certain clear food wraps.
+        4. LDPE (Low-Density Polyethylene) - Squeezable bottles, grocery bags, flexible wraps.
+        5. PP (Polypropylene) - Yogurt cups, syrup bottles, bottle caps, straws.
+        6. PS (Polystyrene) - Styrofoam, disposable cups, plastic cutlery, egg cartons.
+        7. OTHER - Acrylic, fiberglass, nylon, multi-layer plastics, or composite resin.
 
+        You MUST return ONLY a valid JSON object. Do not include markdown wraps like ```json. 
+        Dynamically fill out the fields based on the actual object identified in the image:
+
+        If a plastic object is detected, populate it like this template:
         {
           "detected": true,
-          "plastic_type": "PET",
-          "recyclable": true,
-          "details": "PET is commonly used in water bottles and can be recycled."
+          "plastic_type": "INSERT_ACRONYM_HERE (e.g., PET, HDPE, PP, LDPE, etc.)",
+          "recyclable": true, // (Set to true or false boolean based on whether this type is generally curbside recyclable)
+          "details": "Provide a specific 2-3 sentence breakdown of what the item is, what type of plastic it is made of, and real-world tips on how to properly dispose of or recycle it."
         }
 
-        If no plastic is found:
-
+        If absolutely no plastic item is found in the image:
         {
           "detected": false,
           "plastic_type": "",
@@ -46,12 +58,13 @@ def analyze_plastic(image_bytes, mime_type):
         }
         """
 
+        # Call Gemini 2.5 Flash
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[prompt, image_part],
-            config={
-                "response_mime_type": "application/json"
-            }
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
         )
 
         result = json.loads(response.text)
@@ -84,7 +97,6 @@ def detect():
     mime_type = file.content_type
 
     result = analyze_plastic(image_bytes, mime_type)
-
     return jsonify(result)
 
 
