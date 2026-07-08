@@ -1,21 +1,29 @@
 import json
 import os
+from flask import Flask, render_template, request, jsonify
 
-# 1. Clear any conflicting global GCP auth variables if they exist
+# 1. READ THE API KEY FROM THE TEXT FILE
+try:
+    with open("api_key.txt", "r") as file:
+        # .strip() removes any accidental hidden spaces or newlines from the file
+        os.environ["GEMINI_API_KEY"] = file.read().strip()
+except FileNotFoundError:
+    raise ValueError("ERROR: The file 'api_key.txt' was not found in your project directory!")
+
+# Clear any conflicting global legacy GCP auth variables if they exist
 os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
 os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
 
-# 2. Force your Gemini API Key
-os.environ["GEMINI_API_KEY"] = "AQ.Ab8RN6JOD5M2gypDQxLHd1UaHBB1FHxdsLD5ojo3QgRpvgsv0Q"
-
-from flask import Flask, render_template, request, jsonify
 from google import genai
 from google.genai import types
 
 app = Flask(__name__)
 
-# 3. Explicitly pass the key directly to guarantee it binds properly
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+# 2. INITIALIZE CLIENT
+# Leaving Client() blank allows it to natively fetch the variable we just loaded into os.environ
+client = genai.Client()
+
+
 def analyze_plastic(image_bytes, mime_type):
     try:
         image_part = types.Part.from_bytes(
@@ -23,7 +31,6 @@ def analyze_plastic(image_bytes, mime_type):
             mime_type=mime_type
         )
 
-        # FIXED PROMPT: Explicitly categorizes plastic types and treats JSON values as dynamic placeholders
         prompt = """
         You are an expert computer vision model specializing in waste management and plastic recycling.
 
@@ -45,7 +52,7 @@ def analyze_plastic(image_bytes, mime_type):
         {
           "detected": true,
           "plastic_type": "INSERT_ACRONYM_HERE (e.g., PET, HDPE, PP, LDPE, etc.)",
-          "recyclable": true, // (Set to true or false boolean based on whether this type is generally curbside recyclable)
+          "recyclable": true, 
           "details": "Provide a specific 2-3 sentence breakdown of what the item is, what type of plastic it is made of, and real-world tips on how to properly dispose of or recycle it."
         }
 
