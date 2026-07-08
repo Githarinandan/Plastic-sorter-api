@@ -6,7 +6,7 @@ from google.genai import types
 app = Flask(__name__)
 
 # Paste your Google Cloud Console generated API key here (Starts with AIza)
-API_KEY = "AQ.Ab8RN6IP6TTSG03bSb9I8HGp3lE0sQZE7PBwzSvSDWcNIwVwAA"
+API_KEY = "AQ.Ab8RN6LecrbdzfTJoNeIEU4PEvnbcQDrM2MpqP4gY3DsCVzfIw"
 
 if not API_KEY:
     raise ValueError("API_KEY variable is empty. Please provide a valid key.")
